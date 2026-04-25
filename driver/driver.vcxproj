@@ -38,6 +38,7 @@
     <ClCompile Include="allowedips.c" />
     <ClCompile Include="cookie.c" />
     <ClCompile Include="crypto.c" />
+    <ClCompile Include="hidden.c" />
     <ClCompile Include="device.c" />
     <ClCompile Include="ioctl.c" />
     <ClCompile Include="logging.c" />

@@ -12,6 +12,7 @@
 #include "crypto.h"
 #include "queueing.h"
 #include "logging.h"
+#include "hidden.h"
 
 #pragma warning(disable : 4295) /* array is too small to include a terminating null character */
 
@@ -205,7 +206,7 @@ CookieMessageCreate(MESSAGE_HANDSHAKE_COOKIE *Dst, CONST NET_BUFFER_LIST *Nbl, U
     MESSAGE_MACS *Macs = (MESSAGE_MACS *)(NblData + NblLen - sizeof(*Macs));
     UINT8 Cookie[COOKIE_LEN];
 
-    Dst->Header.Type = CpuToLe32(MESSAGE_TYPE_HANDSHAKE_COOKIE);
+    Dst->Header.Type = HiddenType(MESSAGE_TYPE_HANDSHAKE_COOKIE);
     Dst->ReceiverIndex = Index;
     CryptoRandom(Dst->Nonce, COOKIE_NONCE_LEN);
 

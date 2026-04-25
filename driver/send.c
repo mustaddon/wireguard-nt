@@ -13,6 +13,7 @@
 #include "messages.h"
 #include "cookie.h"
 #include "logging.h"
+#include "hidden.h"
 
 _IRQL_requires_max_(APC_LEVEL)
 _Requires_lock_not_held_(Peer->Handshake.StaticIdentity->Lock)
@@ -188,7 +189,7 @@ EncryptPacket(
 {
     ULONG PaddingLen = CalculateNblPadding(NbIn, Mtu);
     UCHAR *OutBuffer = MemGetValidatedNetBufferData(NbOut);
-    *(MESSAGE_DATA *)OutBuffer = (MESSAGE_DATA){ .Header.Type = CpuToLe32(MESSAGE_TYPE_DATA),
+    *(MESSAGE_DATA *)OutBuffer = (MESSAGE_DATA){ .Header.Type = HiddenType(MESSAGE_TYPE_DATA),
                                                  .KeyIdx = Keypair->RemoteIndex,
                                                  .Counter = CpuToLe64(NET_BUFFER_NONCE(NbOut)) };
     OutBuffer += sizeof(MESSAGE_DATA);

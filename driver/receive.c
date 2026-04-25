@@ -13,6 +13,7 @@
 #include "socket.h"
 #include "timers.h"
 #include "logging.h"
+#include "hidden.h"
 
 static VOID
 UpdateRxStats(_Inout_ WG_PEER *Peer, _In_ CONST ULONG Len)
@@ -37,11 +38,11 @@ ReceiveHandshakePacket(_Inout_ WG_DEVICE *Wg, _In_ NET_BUFFER_LIST *Nbl)
     static UINT64 LastUnderLoad;
     BOOLEAN PacketNeedsCookie;
     BOOLEAN UnderLoad;
-    UINT32_LE NblType = NBL_TYPE_LE32(Nbl);
+    UINT8 NblType = NBL_TYPE_HIDDEN(Nbl);
     NET_BUFFER *Nb = NET_BUFFER_LIST_FIRST_NB(Nbl);
     CHAR EndpointName[SOCKADDR_STR_MAX_LEN];
 
-    if (NblType == CpuToLe32(MESSAGE_TYPE_HANDSHAKE_COOKIE))
+    if (NblType == MESSAGE_TYPE_HANDSHAKE_COOKIE)
     {
         LogInfoNblRatelimited(Wg, "Receiving cookie response from %s", Nbl);
         CookieMessageConsume(MemGetValidatedNetBufferListData(Nbl), Wg);
@@ -76,7 +77,7 @@ ReceiveHandshakePacket(_Inout_ WG_DEVICE *Wg, _In_ NET_BUFFER_LIST *Nbl)
 
     switch (NblType)
     {
-    case CpuToLe32(MESSAGE_TYPE_HANDSHAKE_INITIATION): {
+    case MESSAGE_TYPE_HANDSHAKE_INITIATION: {
         MESSAGE_HANDSHAKE_INITIATION *Message = MemGetValidatedNetBufferListData(Nbl);
 
         if (PacketNeedsCookie)
@@ -96,7 +97,7 @@ ReceiveHandshakePacket(_Inout_ WG_DEVICE *Wg, _In_ NET_BUFFER_LIST *Nbl)
         PacketSendHandshakeResponse(Peer);
         break;
     }
-    case CpuToLe32(MESSAGE_TYPE_HANDSHAKE_RESPONSE): {
+    case MESSAGE_TYPE_HANDSHAKE_RESPONSE: {
         MESSAGE_HANDSHAKE_RESPONSE *Message = MemGetValidatedNetBufferListData(Nbl);
 
         if (PacketNeedsCookie)
@@ -538,16 +539,17 @@ PrepareNetBufferListHeader(_Inout_ NET_BUFFER_LIST *Nbl)
         return FALSE;
     Src += Buffer->Offset;
     MESSAGE_HEADER *Header = MemGetValidatedNetBufferListData(Nbl);
+    UINT8 NblType = HEADER_TYPE_HIDDEN(Header);
     RtlCopyMemory(Header, Src, sizeof(*Header));
     ULONG HeaderLen;
     BOOLEAN LenIsValid;
-    if (Header->Type == CpuToLe32(MESSAGE_TYPE_DATA))
+    if (NblType == MESSAGE_TYPE_DATA)
         HeaderLen = sizeof(MESSAGE_DATA), LenIsValid = Buffer->Length >= MESSAGE_MINIMUM_LENGTH;
-    else if (Header->Type == CpuToLe32(MESSAGE_TYPE_HANDSHAKE_INITIATION))
+    else if (NblType == MESSAGE_TYPE_HANDSHAKE_INITIATION)
         HeaderLen = sizeof(MESSAGE_HANDSHAKE_INITIATION), LenIsValid = Buffer->Length == HeaderLen;
-    else if (Header->Type == CpuToLe32(MESSAGE_TYPE_HANDSHAKE_RESPONSE))
+    else if (NblType == MESSAGE_TYPE_HANDSHAKE_RESPONSE)
         HeaderLen = sizeof(MESSAGE_HANDSHAKE_RESPONSE), LenIsValid = Buffer->Length == HeaderLen;
-    else if (Header->Type == CpuToLe32(MESSAGE_TYPE_HANDSHAKE_COOKIE))
+    else if (NblType == MESSAGE_TYPE_HANDSHAKE_COOKIE)
         HeaderLen = sizeof(MESSAGE_HANDSHAKE_COOKIE), LenIsValid = Buffer->Length == HeaderLen;
     else
         return FALSE;
@@ -569,11 +571,11 @@ PacketReceive(WG_DEVICE *Wg, NET_BUFFER_LIST *First)
 
         if (!PrepareNetBufferListHeader(Nbl))
             goto cleanup;
-        switch (NBL_TYPE_LE32(Nbl))
+        switch (NBL_TYPE_HIDDEN(Nbl))
         {
-        case CpuToLe32(MESSAGE_TYPE_HANDSHAKE_INITIATION):
-        case CpuToLe32(MESSAGE_TYPE_HANDSHAKE_RESPONSE):
-        case CpuToLe32(MESSAGE_TYPE_HANDSHAKE_COOKIE): {
+        case MESSAGE_TYPE_HANDSHAKE_INITIATION:
+        case MESSAGE_TYPE_HANDSHAKE_RESPONSE:
+        case MESSAGE_TYPE_HANDSHAKE_COOKIE: {
             NTSTATUS Ret = ReadULongNoFence(&Wg->HandshakeRxQueueLen) >= MAX_QUEUED_INCOMING_HANDSHAKES / 2
                                ? PtrRingTryProduce(&Wg->HandshakeRxQueue, Nbl)
                                : PtrRingProduce(&Wg->HandshakeRxQueue, Nbl);
@@ -586,7 +588,7 @@ PacketReceive(WG_DEVICE *Wg, NET_BUFFER_LIST *First)
             MulticoreWorkQueueBump(&Wg->HandshakeRxThreads);
             break;
         }
-        case CpuToLe32(MESSAGE_TYPE_DATA):
+        case MESSAGE_TYPE_DATA:
             *Link = Nbl;
             Link = &NET_BUFFER_LIST_NEXT_NBL(Nbl);
             break;

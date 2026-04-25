@@ -12,6 +12,7 @@
 #include "peerlookup.h"
 #include "queueing.h"
 #include "logging.h"
+#include "hidden.h"
 
 #pragma warning(disable : 4295) /* array is too small to include a terminating null character */
 
@@ -570,7 +571,7 @@ NoiseHandshakeCreateInitiation(MESSAGE_HANDSHAKE_INITIATION *Dst, NOISE_HANDSHAK
     if (!Handshake->StaticIdentity->HasIdentity)
         goto out;
 
-    Dst->Header.Type = CpuToLe32(MESSAGE_TYPE_HANDSHAKE_INITIATION);
+    Dst->Header.Type = HiddenType(MESSAGE_TYPE_HANDSHAKE_INITIATION);
 
     HandshakeInit(Handshake->ChainingKey, Handshake->Hash, Handshake->RemoteStatic);
 
@@ -700,7 +701,7 @@ NoiseHandshakeCreateResponse(MESSAGE_HANDSHAKE_RESPONSE *Dst, NOISE_HANDSHAKE *H
     if (Handshake->State != HANDSHAKE_CONSUMED_INITIATION)
         goto out;
 
-    Dst->Header.Type = CpuToLe32(MESSAGE_TYPE_HANDSHAKE_RESPONSE);
+    Dst->Header.Type = HiddenType(MESSAGE_TYPE_HANDSHAKE_RESPONSE);
     Dst->ReceiverIndex = Handshake->RemoteIndex;
 
     /* e */
