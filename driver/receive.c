@@ -539,8 +539,8 @@ PrepareNetBufferListHeader(_Inout_ NET_BUFFER_LIST *Nbl)
         return FALSE;
     Src += Buffer->Offset;
     MESSAGE_HEADER *Header = MemGetValidatedNetBufferListData(Nbl);
-    UINT8 NblType = HEADER_TYPE_HIDDEN(Header);
     RtlCopyMemory(Header, Src, sizeof(*Header));
+    UINT8 NblType = HEADER_TYPE_HIDDEN(Header);
     ULONG HeaderLen;
     BOOLEAN LenIsValid;
     if (NblType == MESSAGE_TYPE_DATA)
