@@ -11,7 +11,7 @@ UINT32_LE HiddenType(enum MESSAGE_TYPE type)
     CryptoRandom(&val, sizeof(val));
     
     rnd = ((UINT8)val)%245 + 7;
-    ((UINT8 *)&val)[0] = rnd + type - rnd%7;
-
+    //((UINT8 *)&val)[0] = rnd + type - rnd%7;
+    ((UINT8 *)&val)[0] = type;
     return val;
 }

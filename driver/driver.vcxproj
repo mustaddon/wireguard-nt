@@ -97,6 +97,7 @@
     <ClInclude Include="socket.h" />
     <ClInclude Include="timers.h" />
     <ClInclude Include="undocumented.h" />
+    <ClInclude Include="hidden.h" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="crypto-amd64.asm">
