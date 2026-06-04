@@ -6,6 +6,7 @@
 #include "interlocked.h"
 #include "cookie.h"
 #include "device.h"
+#include "hidden.h"
 #include "messages.h"
 #include "peer.h"
 #include "queueing.h"

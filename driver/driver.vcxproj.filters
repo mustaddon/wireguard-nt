@@ -75,6 +75,9 @@
     <ClCompile Include="device.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="hidden.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -115,6 +118,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="device.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hidden.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="messages.h">
