@@ -3,6 +3,7 @@
 
 #include "device.h"
 #include "peer.h"
+#include "memory.h"
 
 #if defined(_MSC_VER)
 #    define PACKED_STRUCT __pragma(pack(push, 1))
@@ -12,18 +13,19 @@
 #    define END_PACKED_STRUCT __attribute__((packed))
 #endif
 
-#define	ERROR_HIDDEN_LEN 0xFFFF
 
+_IRQL_requires_max_(DISPATCH_LEVEL)
+_Return_type_success_(return == TRUE)
+_Must_inspect_result_
+BOOLEAN PrepareNetBufferListHidden(_Inout_ NET_BUFFER_LIST *Nbl, _In_ WG_DEVICE *wg);
 
-//size_t prepare_skb_hidden(struct sk_buff *skb, struct WG_DEVICE *wg);
-//
-//void skb_push_hidden_handshake_cookie(void *skb, void *buffer, struct WG_DEVICE *wg);
-//
-//void skb_push_hidden_handshake(void *skb, void *buffer, struct WG_PEER *peer);
-//
-//void skb_push_hidden_data(void *skb, void *buffer, unsigned int hlen, struct WG_PEER *peer);
-//
-//unsigned int hidden_data_header_len(unsigned int len);
+VOID skb_push_hidden_handshake_cookie(VOID *skb, VOID *buffer, WG_DEVICE *wg);
+
+VOID skb_push_hidden_handshake(VOID *skb, VOID *buffer, WG_PEER *peer);
+
+VOID skb_push_hidden_data(VOID *skb, VOID *buffer, UINT32 hlen, WG_PEER *peer);
+
+UINT32 hidden_data_header_len(UINT32 len);
 
 
 #define QUIC_START_FIELDS UINT8 flags; UINT32_BE version;

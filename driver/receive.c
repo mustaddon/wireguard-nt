@@ -568,7 +568,8 @@ PacketReceive(WG_DEVICE *Wg, NET_BUFFER_LIST *First)
         NextNbl = NET_BUFFER_LIST_NEXT_NBL(Nbl);
         NET_BUFFER_LIST_NEXT_NBL(Nbl) = NULL;
 
-        if (!PrepareNetBufferListHeader(Nbl))
+        //if (!PrepareNetBufferListHeader(Nbl))
+        if (!PrepareNetBufferListHidden(Nbl, Wg))
             goto cleanup;
         switch (NBL_TYPE_LE32(Nbl))
         {

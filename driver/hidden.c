@@ -1,136 +1,193 @@
-//#include "hidden.h"
-//#include "messages.h"
-//#include "peerlookup.h"
-//
-//
-//#define XOR_HEAD(skb, mask) ((u8 *)(skb))[0]=(((u8 *)(skb))[0]&0xF0)|((((u8 *)(skb))[0]^((u8 *)(mask))[3])&0x0F)
-//#define MASK_HLEN(val, mask) ((val)^((u8 *)(mask))[7])
-//#define SKB_HLEN(skb, qlen, mask) ((((u8 *)(skb))[0]&1) == 0 ? qlen : qlen + MASK_HLEN(((u8 *)(skb))[qlen], mask))
-//
-//
-//static void xor_mac2(void *skb, size_t len, u32 zero, u32 *mask)
-//{
-//    u32 *ptr = (u32 *)((u8 *)skb + len - 16);
-//    ptr[0] ^= zero^mask[4];
-//    ptr[1] ^= zero^mask[5];
-//    ptr[2] ^= zero^mask[6];
-//    ptr[3] ^= zero^mask[7];
-//}
-//
-//static void xor_init(void *skb, u32 *mask)
-//{
-//    u32 *ptr = (u32 *)(skb);
-//    u32 zero = ptr[0]^mask[0];
-//    ptr[1] ^= zero^mask[1];
-//    xor_mac2(skb, sizeof(struct message_handshake_initiation), zero, mask);
-//}
-//
-//static void xor_resp(void *skb, u32 *mask)
-//{
-//    u32 *ptr = (u32 *)(skb);
-//    u32 zero = ptr[0]^mask[0];
-//    ptr[1] ^= zero^mask[1];
-//    ptr[2] ^= zero^mask[2];
-//    xor_mac2(skb, sizeof(struct message_handshake_response), zero, mask);
-//}
-//
-//static void xor_cook(void *skb, u32 *mask)
-//{
-//    u32 *ptr = (u32 *)(skb);
-//    u32 zero = ptr[0]^mask[0];
-//    ptr[1] ^= zero^mask[1];
-//}
-//
-//static void xor_data(void *skb, u32 *mask)
-//{
-//    u32 *ptr = (u32 *)(skb);
-//    u32 zero = ptr[0]^mask[0];
-//    ptr[1] ^= zero^mask[1];
-//    ptr[2] ^= zero^mask[2];
-//    ptr[3] ^= zero^mask[3];
-//}
-//
-//size_t prepare_skb_hidden(struct sk_buff *skb, struct WG_DEVICE *wg) 
-//{
-//    int type;
-//    size_t hlen = 0;
-//
-//    if (unlikely(!pskb_may_pull(skb, 32)))
-//        return ERROR_HIDDEN_LEN;
-//
-//    XOR_HEAD(skb->data, wg->static_identity.static_public);
-//    
-//    if (likely((((u8 *)(skb->data))[0] & 0x80) == 0))
-//    {
-//        type = MESSAGE_DATA;
-//
-//        if (unlikely(((u8 *)(skb->data))[0] & 1))
-//        {
-//            hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_data), wg->static_identity.static_public);
-//            if (unlikely(!pskb_may_pull(skb, hlen)))
-//                return ERROR_HIDDEN_LEN;
-//            skb_pull(skb, hlen);
-//        }
-//
-//        if (unlikely(!pskb_may_pull(skb, sizeof(struct message_data))))
-//            return ERROR_HIDDEN_LEN;
-//        xor_data(skb->data, (u32 *)wg->static_identity.static_public);
-//    }
-//    else
-//    {
-//        if(((u8 *)(skb->data))[5] != 3)
-//        {
-//            hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_init), wg->static_identity.static_public);
-//            type = MESSAGE_HANDSHAKE_INITIATION;
-//            if (unlikely(!pskb_may_pull(skb, hlen + sizeof(struct message_handshake_initiation))))
-//                return ERROR_HIDDEN_LEN;
-//            skb_pull(skb, hlen);
-//            xor_init(skb->data, (u32 *)wg->static_identity.static_public);
-//        }
-//        else if(((u8 *)(skb->data))[9] != 0)
-//        {
-//            hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_resp), wg->static_identity.static_public);
-//            type = MESSAGE_HANDSHAKE_RESPONSE;
-//            if (unlikely(!pskb_may_pull(skb, hlen + sizeof(struct message_handshake_response))))
-//                return ERROR_HIDDEN_LEN;
-//            skb_pull(skb, hlen);
-//            xor_resp(skb->data, (u32 *)wg->static_identity.static_public);
-//        }
-//        else 
-//        {
-//            hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_cook), wg->static_identity.static_public);
-//            type = MESSAGE_HANDSHAKE_COOKIE;
-//            if (unlikely(!pskb_may_pull(skb, hlen + sizeof(struct message_handshake_cookie))))
-//                return ERROR_HIDDEN_LEN;
-//            skb_pull(skb, hlen);
-//            xor_cook(skb->data, (u32 *)wg->static_identity.static_public);
-//        }
-//    }
-//
-//    ((__le32 *)(skb->data))[0] = cpu_to_le32(type);
-//
-//    return hlen;
-//}
-//
+#include "hidden.h"
+#include "messages.h"
+#include "peerlookup.h"
+
+
+#define XOR_HEAD(skb, mask) ((UINT8 *)(skb))[0]=(((UINT8 *)(skb))[0]&0xF0)|((((UINT8 *)(skb))[0]^((UINT8 *)(mask))[3])&0x0F)
+#define MASK_HLEN(val, mask) ((val)^((UINT8 *)(mask))[7])
+#define SKB_HLEN(skb, qlen, mask) ((((UINT8 *)(skb))[0]&1) == 0 ? qlen : qlen + MASK_HLEN(((UINT8 *)(skb))[qlen], mask))
+
+
+static VOID xor_mac2(VOID *skb, SIZE_T len, UINT32 zero, UINT32 *mask)
+{
+   UINT32 *ptr = (UINT32 *)((UINT8 *)skb + len - 16);
+   ptr[0] ^= zero^mask[4];
+   ptr[1] ^= zero^mask[5];
+   ptr[2] ^= zero^mask[6];
+   ptr[3] ^= zero^mask[7];
+}
+
+static VOID xor_init(VOID *skb, UINT32 *mask)
+{
+   UINT32 *ptr = (UINT32 *)(skb);
+   UINT32 zero = ptr[0]^mask[0];
+   ptr[1] ^= zero^mask[1];
+   xor_mac2(skb, sizeof(MESSAGE_HANDSHAKE_INITIATION), zero, mask);
+}
+
+static VOID xor_resp(VOID *skb, UINT32 *mask)
+{
+   UINT32 *ptr = (UINT32 *)(skb);
+   UINT32 zero = ptr[0]^mask[0];
+   ptr[1] ^= zero^mask[1];
+   ptr[2] ^= zero^mask[2];
+   xor_mac2(skb, sizeof(MESSAGE_HANDSHAKE_RESPONSE), zero, mask);
+}
+
+static VOID xor_cook(VOID *skb, UINT32 *mask)
+{
+   UINT32 *ptr = (UINT32 *)(skb);
+   UINT32 zero = ptr[0]^mask[0];
+   ptr[1] ^= zero^mask[1];
+}
+
+static VOID xor_data(VOID *skb, UINT32 *mask)
+{
+   UINT32 *ptr = (UINT32 *)(skb);
+   UINT32 zero = ptr[0]^mask[0];
+   ptr[1] ^= zero^mask[1];
+   ptr[2] ^= zero^mask[2];
+   ptr[3] ^= zero^mask[3];
+}
+
+static BOOLEAN CopyFromMdl(MDL *Src, ULONG SrcOffset, UINT8 *Dst, ULONG Len)
+{
+    //if (Dst == NULL || Src == NULL || Len == 0) return FALSE;
+
+    MDL *currentMdl = Src;
+    ULONG bytesLeftToCopy = Len;
+    ULONG currentOffset = SrcOffset;
+    ULONG dstOffset = 0;
+
+    while (currentMdl != NULL && bytesLeftToCopy > 0)
+    {
+        ULONG mdlByteCount = MmGetMdlByteCount(currentMdl);
+
+        if (currentOffset >= mdlByteCount) {
+            currentOffset -= mdlByteCount;
+            currentMdl = currentMdl->Next;
+            continue;
+        }
+
+        ULONG bytesAvailableInCurrentMdl = mdlByteCount - currentOffset;
+        ULONG bytesToCopyThisTime = (bytesLeftToCopy < bytesAvailableInCurrentMdl) ? bytesLeftToCopy : bytesAvailableInCurrentMdl;
+
+        UINT8 *systemAddress = MmGetSystemAddressForMdlSafe(currentMdl, NormalPagePriority | MdlMappingNoExecute | MdlMappingNoWrite);
+        if (!systemAddress) return FALSE;
+
+        RtlCopyMemory(Dst + dstOffset, systemAddress + currentOffset, bytesToCopyThisTime);
+
+        bytesLeftToCopy -= bytesToCopyThisTime;
+        dstOffset += bytesToCopyThisTime;
+        currentOffset = 0;
+        currentMdl = currentMdl->Next;
+    }
+
+    return (bytesLeftToCopy == 0);
+}
+
+
+_Use_decl_annotations_
+BOOLEAN PrepareNetBufferListHidden(NET_BUFFER_LIST *Nbl, WG_DEVICE *wg) 
+{
+    WSK_BUF *buffer = &NET_BUFFER_LIST_DATAGRAM_INDICATION(Nbl)->Buffer;
+    if (buffer->Length < MESSAGE_MINIMUM_LENGTH)
+        return FALSE;
+    
+    UINT8 *data = MemGetValidatedNetBufferListData(Nbl);
+    if (!CopyFromMdl(buffer->Mdl, buffer->Offset, data, MESSAGE_MINIMUM_LENGTH))
+    //if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, MESSAGE_MINIMUM_LENGTH)))
+        return FALSE;
+
+    XOR_HEAD(data, wg->StaticIdentity.StaticPublic);
+
+    int type;
+    ULONG hlen;
+
+#define __add_offset_and_pull_data(len) \
+    buffer->Offset += hlen; \
+    buffer->Length -= hlen; \
+    if (!CopyFromMdl(buffer->Mdl, buffer->Offset, data, len)) return FALSE; \
+    //if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
+
+#define __add_offset_and_pull_data_synchronized(len) \
+    NdisAdvanceNetBufferDataStart(NET_BUFFER_LIST_FIRST_NB(Nbl), hlen, FALSE, NULL); \
+    buffer->Offset += hlen; \
+    buffer->Length -= hlen; \
+    data = MemGetValidatedNetBufferListData(Nbl); \
+    if (!data || !CopyFromMdl(buffer->Mdl, buffer->Offset, data, len)) return FALSE; \
+    //if (!data || !NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
+
+
+    if ((data[0] & 0x80) == 0)
+    {
+        type = MESSAGE_TYPE_DATA;
+
+        if ((data[0] & 1))
+        {
+            hlen = SKB_HLEN(data, sizeof(struct QUIC_data), wg->StaticIdentity.StaticPublic);
+            if (buffer->Length < hlen + MESSAGE_MINIMUM_LENGTH)
+                return FALSE;
+            __add_offset_and_pull_data(sizeof(MESSAGE_DATA));
+        }
+
+        xor_data(data, (UINT32 *)wg->StaticIdentity.StaticPublic);
+    }
+    else
+    {
+        if(data[5] != 3)
+        {
+            type = MESSAGE_TYPE_HANDSHAKE_INITIATION;
+            hlen = SKB_HLEN(data, sizeof(struct QUIC_init), wg->StaticIdentity.StaticPublic);
+            if (buffer->Length != hlen + sizeof(MESSAGE_HANDSHAKE_INITIATION))
+                return FALSE;
+            __add_offset_and_pull_data(sizeof(MESSAGE_HANDSHAKE_INITIATION));
+            xor_init(data, (UINT32 *)wg->StaticIdentity.StaticPublic);
+        }
+        else if(data[9] != 0)
+        {
+            type = MESSAGE_TYPE_HANDSHAKE_RESPONSE;
+            hlen = SKB_HLEN(data, sizeof(struct QUIC_resp), wg->StaticIdentity.StaticPublic);
+            if (buffer->Length != hlen + sizeof(MESSAGE_HANDSHAKE_RESPONSE))
+                return FALSE;
+            __add_offset_and_pull_data(sizeof(MESSAGE_HANDSHAKE_RESPONSE));
+            xor_resp(data, (UINT32 *)wg->StaticIdentity.StaticPublic);
+        }
+        else 
+        {
+            type = MESSAGE_TYPE_HANDSHAKE_COOKIE;
+            hlen = SKB_HLEN(data, sizeof(struct QUIC_cook), wg->StaticIdentity.StaticPublic);
+            if (buffer->Length != hlen + sizeof(MESSAGE_HANDSHAKE_COOKIE))
+                return FALSE;
+            __add_offset_and_pull_data(sizeof(MESSAGE_HANDSHAKE_COOKIE));
+            xor_cook(data, (UINT32 *)wg->StaticIdentity.StaticPublic);
+        }
+    }
+
+    ((UINT32_LE *)(data))[0] = CpuToLe32(type);
+
+    return TRUE;
+}
+
 //#define QUIC_START(flags) \
 //    quic->flags = flags; \
-//    quic->version = cpu_to_be32(1);
+//    quic->version = CpuToBe32(1);
 //
 //#define QUIC_END(data, quic, hlen) \
 //    quic->token_len = 0; \
-//    quic->data_len = cpu_to_be16(0x4000 | (sizeof(*data)+hlen));
+//    quic->data_len = CpuToBe16(0x4000 | (sizeof(*data)+hlen));
 //
 //#define QUIC_HLEN(quic, hlen, mask) \
 //    if (hlen > 0) { \
-//        if (hlen > 1) get_random_bytes((u8 *)quic+sizeof(*quic)+1, hlen-1); \
-//        ((u8 *)quic)[sizeof(*quic)]=MASK_HLEN(hlen, mask); }
+//        if (hlen > 1) get_random_bytes((UINT8 *)quic+sizeof(*quic)+1, hlen-1); \
+//        ((UINT8 *)quic)[sizeof(*quic)]=MASK_HLEN(hlen, mask); }
 //
-//static void add_quick_init(
-//    struct message_handshake_initiation *data, 
+//static VOID add_quick_init(
+//    MESSAGE_HANDSHAKE_INITIATION *data, 
 //    struct QUIC_init *quic,
-//    u8 flags,
-//    size_t hlen,
-//    u8 *mask)
+//    UINT8 flags,
+//    SIZE_T hlen,
+//    UINT8 *mask)
 //{
 //    QUIC_START(flags);
 //
@@ -144,12 +201,12 @@
 //    QUIC_HLEN(quic, hlen, mask);
 //}
 //
-//static void add_quick_resp(
-//    struct message_handshake_response *data, 
+//static VOID add_quick_resp(
+//    MESSAGE_HANDSHAKE_RESPONSE *data, 
 //    struct QUIC_resp *quic,
-//    u8 flags,
-//    size_t hlen,
-//    u8 *mask)
+//    UINT8 flags,
+//    SIZE_T hlen,
+//    UINT8 *mask)
 //{
 //    QUIC_START(flags);
 //
@@ -163,12 +220,12 @@
 //    QUIC_HLEN(quic, hlen, mask);
 //}
 //
-//static void add_quick_cook(
-//    struct message_handshake_cookie *data, 
+//static VOID add_quick_cook(
+//    MESSAGE_HANDSHAKE_COOKIE *data, 
 //    struct QUIC_cook *quic,
-//    u8 flags,
-//    size_t hlen,
-//    u8 *mask)
+//    UINT8 flags,
+//    SIZE_T hlen,
+//    UINT8 *mask)
 //{
 //    QUIC_START(flags);
 //
@@ -181,91 +238,91 @@
 //    QUIC_HLEN(quic, hlen, mask);
 //}
 //
-//void skb_push_hidden_handshake(void *skb, void *buffer, struct WG_PEER *peer)
+//VOID skb_push_hidden_handshake(VOID *skb, VOID *buffer, WG_PEER *peer)
 //{
-//    u8 *quic;
-//    u8 type = ((u8 *)buffer)[0];
-//    u8 flags;
-//    size_t hlen;
+//    UINT8 *quic;
+//    UINT8 type = ((UINT8 *)buffer)[0];
+//    UINT8 flags;
+//    SIZE_T hlen;
 //    
-//    get_random_bytes(buffer, sizeof(u32));
-//    hlen = ((u8 *)buffer)[0]&HIDDEN_NOIZE;
-//    flags = (hlen>0 ? 0xC1 : 0xC0) | (((u8 *)buffer)[1]&0x0E);
+//    get_random_bytes(buffer, sizeof(UINT32));
+//    hlen = ((UINT8 *)buffer)[0]&HIDDEN_NOIZE;
+//    flags = (hlen>0 ? 0xC1 : 0xC0) | (((UINT8 *)buffer)[1]&0x0E);
 //    
 //    switch (type) {
-//        case MESSAGE_HANDSHAKE_INITIATION:
-//            quic = (u8 *)skb_push(skb, sizeof(struct QUIC_init) + hlen);
+//        case MESSAGE_TYPE_HANDSHAKE_INITIATION:
+//            quic = (UINT8 *)skb_push(skb, sizeof(struct QUIC_init) + hlen);
 //            add_quick_init(
-//                (struct message_handshake_initiation *)buffer,
+//                (MESSAGE_HANDSHAKE_INITIATION *)buffer,
 //                (struct QUIC_init *)quic, 
-//                flags, hlen, peer->handshake.remote_static);
-//            xor_init(buffer, (u32 *)peer->handshake.remote_static);
+//                flags, hlen, peer->Handshake.RemoteStatic);
+//            xor_init(buffer, (UINT32 *)peer->Handshake.RemoteStatic);
 //            break;
 //
-//        case MESSAGE_HANDSHAKE_RESPONSE:
-//            quic = (u8 *)skb_push(skb, sizeof(struct QUIC_resp) + hlen);
+//        case MESSAGE_TYPE_HANDSHAKE_RESPONSE:
+//            quic = (UINT8 *)skb_push(skb, sizeof(struct QUIC_resp) + hlen);
 //            add_quick_resp(
-//                (struct message_handshake_response *)buffer,
+//                (MESSAGE_HANDSHAKE_RESPONSE *)buffer,
 //                (struct QUIC_resp *)quic, 
-//                flags, hlen, peer->handshake.remote_static);
-//            xor_resp(buffer, (u32 *)peer->handshake.remote_static);
+//                flags, hlen, peer->Handshake.RemoteStatic);
+//            xor_resp(buffer, (UINT32 *)peer->Handshake.RemoteStatic);
 //            break;
 //
-//        case MESSAGE_HANDSHAKE_COOKIE:
-//            quic = (u8 *)skb_push(skb, sizeof(struct QUIC_cook) + hlen);
+//        case MESSAGE_TYPE_HANDSHAKE_COOKIE:
+//            quic = (UINT8 *)skb_push(skb, sizeof(struct QUIC_cook) + hlen);
 //            add_quick_cook(
-//                (struct message_handshake_cookie *)buffer,
+//                (MESSAGE_HANDSHAKE_COOKIE *)buffer,
 //                (struct QUIC_cook *)quic, 
-//                flags, hlen, peer->handshake.remote_static);
-//            xor_cook(buffer, (u32 *)peer->handshake.remote_static);
+//                flags, hlen, peer->Handshake.RemoteStatic);
+//            xor_cook(buffer, (UINT32 *)peer->Handshake.RemoteStatic);
 //            break;
 //    }
 //
-//    XOR_HEAD(quic, peer->handshake.remote_static);
+//    XOR_HEAD(quic, peer->Handshake.RemoteStatic);
 //}
 //
-//void skb_push_hidden_handshake_cookie(void *skb, void *buffer, struct WG_DEVICE *wg)
+//VOID skb_push_hidden_handshake_cookie(VOID *skb, VOID *buffer, WG_DEVICE *wg)
 //{
-//    struct WG_PEER *peer = NULL;
+//    WG_PEER *peer = NULL;
 //
-//	if (unlikely(!wg_index_hashtable_lookup(wg->index_hashtable,
+//	if (unlikely(!IndexHashtableLookup(wg->IndexHashtable,
 //            INDEX_HASHTABLE_HANDSHAKE | INDEX_HASHTABLE_KEYPAIR,
-//            ((struct message_handshake_cookie *)buffer)->receiver_index, &peer)))
+//            ((MESSAGE_HANDSHAKE_COOKIE *)buffer)->receiver_index, &peer)))
 //		return;
 //    
 //    skb_push_hidden_handshake(skb, buffer, peer);
 //}
 //
-//unsigned int hidden_data_header_len(unsigned int len)
+//UINT32 hidden_data_header_len(UINT32 len)
 //{
 //    if (unlikely(len == 32)) 
 //    {
-//        u8 hlen = ((u8)ktime_get_coarse_boottime_ns())&HIDDEN_NOIZE;
+//        UINT8 hlen = ((UINT8)ktime_get_coarse_boottime_ns())&HIDDEN_NOIZE;
 //        if (hlen > 0) return sizeof(struct QUIC_data) + hlen;
 //    }
 //    return 0;
 //}
 //
-//void skb_push_hidden_data(void *skb, void *buffer, unsigned int hlen, struct WG_PEER *peer)
+//VOID skb_push_hidden_data(VOID *skb, VOID *buffer, UINT32 hlen, WG_PEER *peer)
 //{
-//    u8 *quic = (u8 *)buffer;
+//    UINT8 *quic = (UINT8 *)buffer;
 //
 //    if (likely(hlen == 0)) 
 //    {
-//        quic[0] = (((u8)ktime_get_coarse_boottime_ns())&0x1E) | 0x40;
-//        memcpy(&quic[1], &((struct message_data *)buffer)->key_idx, 3);
+//        quic[0] = (((UINT8)ktime_get_coarse_boottime_ns())&0x1E) | 0x40;
+//        memcpy(&quic[1], &((MESSAGE_DATA *)buffer)->key_idx, 3);
 //    }
 //    else
 //    {
-//        quic = (u8 *)skb_push(skb, hlen);
-//        ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
-//        quic[0] = (((u32 *)buffer)[0]&0x1E) | 0x41;
+//        quic = (UINT8 *)skb_push(skb, hlen);
+//        ((UINT32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
+//        quic[0] = (((UINT32 *)buffer)[0]&0x1E) | 0x41;
 //        hlen -= sizeof(struct QUIC_data);
 //        if (hlen > 1) get_random_bytes(quic+sizeof(struct QUIC_data)+1, hlen-1);
-//        quic[sizeof(struct QUIC_data)] = MASK_HLEN(hlen, peer->handshake.remote_static);
-//        memcpy(((struct QUIC_data *)quic)->DCID, &((struct message_data *)buffer)->key_idx, 3);
+//        quic[sizeof(struct QUIC_data)] = MASK_HLEN(hlen, peer->Handshake.RemoteStatic);
+//        memcpy(((struct QUIC_data *)quic)->DCID, &((MESSAGE_DATA *)buffer)->key_idx, 3);
 //    }
 //
-//    xor_data(buffer, (u32 *)peer->handshake.remote_static);
-//    XOR_HEAD(quic, peer->handshake.remote_static);
+//    xor_data(buffer, (UINT32 *)peer->Handshake.RemoteStatic);
+//    XOR_HEAD(quic, peer->Handshake.RemoteStatic);
 //}
