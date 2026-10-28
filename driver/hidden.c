@@ -10,7 +10,7 @@
 
 static VOID xor_mac2(VOID *skb, SIZE_T len, UINT32 zero, UINT32 *mask)
 {
-   UINT32 *ptr = (UINT32 *)((UINT8 *)skb + len - 16);
+   UINT32 UNALIGNED *ptr = (UINT32 UNALIGNED *)((UINT8 *)skb + len - 16);
    ptr[0] ^= zero^mask[4];
    ptr[1] ^= zero^mask[5];
    ptr[2] ^= zero^mask[6];
@@ -19,7 +19,7 @@ static VOID xor_mac2(VOID *skb, SIZE_T len, UINT32 zero, UINT32 *mask)
 
 static VOID xor_init(VOID *skb, UINT32 *mask)
 {
-   UINT32 *ptr = (UINT32 *)(skb);
+   UINT32 UNALIGNED *ptr = (UINT32 UNALIGNED *)(skb);
    UINT32 zero = ptr[0]^mask[0];
    ptr[1] ^= zero^mask[1];
    xor_mac2(skb, sizeof(MESSAGE_HANDSHAKE_INITIATION), zero, mask);
@@ -27,7 +27,7 @@ static VOID xor_init(VOID *skb, UINT32 *mask)
 
 static VOID xor_resp(VOID *skb, UINT32 *mask)
 {
-   UINT32 *ptr = (UINT32 *)(skb);
+   UINT32 UNALIGNED *ptr = (UINT32 UNALIGNED *)(skb);
    UINT32 zero = ptr[0]^mask[0];
    ptr[1] ^= zero^mask[1];
    ptr[2] ^= zero^mask[2];
@@ -36,54 +36,18 @@ static VOID xor_resp(VOID *skb, UINT32 *mask)
 
 static VOID xor_cook(VOID *skb, UINT32 *mask)
 {
-   UINT32 *ptr = (UINT32 *)(skb);
+   UINT32 UNALIGNED *ptr = (UINT32 UNALIGNED *)(skb);
    UINT32 zero = ptr[0]^mask[0];
    ptr[1] ^= zero^mask[1];
 }
 
 static VOID xor_data(VOID *skb, UINT32 *mask)
 {
-   UINT32 *ptr = (UINT32 *)(skb);
+   UINT32 UNALIGNED *ptr = (UINT32 UNALIGNED *)(skb);
    UINT32 zero = ptr[0]^mask[0];
    ptr[1] ^= zero^mask[1];
    ptr[2] ^= zero^mask[2];
    ptr[3] ^= zero^mask[3];
-}
-
-static BOOLEAN CopyFromMdl(MDL *Src, ULONG SrcOffset, UINT8 *Dst, ULONG Len)
-{
-    //if (Dst == NULL || Src == NULL || Len == 0) return FALSE;
-
-    MDL *currentMdl = Src;
-    ULONG bytesLeftToCopy = Len;
-    ULONG currentOffset = SrcOffset;
-    ULONG dstOffset = 0;
-
-    while (currentMdl != NULL && bytesLeftToCopy > 0)
-    {
-        ULONG mdlByteCount = MmGetMdlByteCount(currentMdl);
-
-        if (currentOffset >= mdlByteCount) {
-            currentOffset -= mdlByteCount;
-            currentMdl = currentMdl->Next;
-            continue;
-        }
-
-        ULONG bytesAvailableInCurrentMdl = mdlByteCount - currentOffset;
-        ULONG bytesToCopyThisTime = (bytesLeftToCopy < bytesAvailableInCurrentMdl) ? bytesLeftToCopy : bytesAvailableInCurrentMdl;
-
-        UINT8 *systemAddress = MmGetSystemAddressForMdlSafe(currentMdl, NormalPagePriority | MdlMappingNoExecute | MdlMappingNoWrite);
-        if (!systemAddress) return FALSE;
-
-        RtlCopyMemory(Dst + dstOffset, systemAddress + currentOffset, bytesToCopyThisTime);
-
-        bytesLeftToCopy -= bytesToCopyThisTime;
-        dstOffset += bytesToCopyThisTime;
-        currentOffset = 0;
-        currentMdl = currentMdl->Next;
-    }
-
-    return (bytesLeftToCopy == 0);
 }
 
 
@@ -95,8 +59,7 @@ BOOLEAN PrepareNetBufferListHidden(NET_BUFFER_LIST *Nbl, WG_DEVICE *wg)
         return FALSE;
     
     UINT8 *data = MemGetValidatedNetBufferListData(Nbl);
-    if (!CopyFromMdl(buffer->Mdl, buffer->Offset, data, MESSAGE_MINIMUM_LENGTH))
-    //if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, MESSAGE_MINIMUM_LENGTH)))
+    if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, MESSAGE_MINIMUM_LENGTH)))
         return FALSE;
 
     XOR_HEAD(data, wg->StaticIdentity.StaticPublic);
@@ -104,19 +67,17 @@ BOOLEAN PrepareNetBufferListHidden(NET_BUFFER_LIST *Nbl, WG_DEVICE *wg)
     int type;
     ULONG hlen;
 
-#define __add_offset_and_pull_data(len) \
-    buffer->Offset += hlen; \
-    buffer->Length -= hlen; \
-    if (!CopyFromMdl(buffer->Mdl, buffer->Offset, data, len)) return FALSE; \
-    //if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
+// #define __add_offset_and_pull_data(len) \
+//     buffer->Offset += hlen; \
+//     buffer->Length -= hlen; \
+//     if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
 
-#define __add_offset_and_pull_data_synchronized(len) \
+#define __add_offset_and_pull_data(len) \
     NdisAdvanceNetBufferDataStart(NET_BUFFER_LIST_FIRST_NB(Nbl), hlen, FALSE, NULL); \
     buffer->Offset += hlen; \
     buffer->Length -= hlen; \
     data = MemGetValidatedNetBufferListData(Nbl); \
-    if (!data || !CopyFromMdl(buffer->Mdl, buffer->Offset, data, len)) return FALSE; \
-    //if (!data || !NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
+    if (!data || !NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
 
 
     if ((data[0] & 0x80) == 0)
@@ -139,7 +100,7 @@ BOOLEAN PrepareNetBufferListHidden(NET_BUFFER_LIST *Nbl, WG_DEVICE *wg)
         {
             type = MESSAGE_TYPE_HANDSHAKE_INITIATION;
             hlen = SKB_HLEN(data, sizeof(struct QUIC_init), wg->StaticIdentity.StaticPublic);
-            if (buffer->Length != hlen + sizeof(MESSAGE_HANDSHAKE_INITIATION))
+            if (buffer->Length < hlen + sizeof(MESSAGE_HANDSHAKE_INITIATION))
                 return FALSE;
             __add_offset_and_pull_data(sizeof(MESSAGE_HANDSHAKE_INITIATION));
             xor_init(data, (UINT32 *)wg->StaticIdentity.StaticPublic);
@@ -148,7 +109,7 @@ BOOLEAN PrepareNetBufferListHidden(NET_BUFFER_LIST *Nbl, WG_DEVICE *wg)
         {
             type = MESSAGE_TYPE_HANDSHAKE_RESPONSE;
             hlen = SKB_HLEN(data, sizeof(struct QUIC_resp), wg->StaticIdentity.StaticPublic);
-            if (buffer->Length != hlen + sizeof(MESSAGE_HANDSHAKE_RESPONSE))
+            if (buffer->Length < hlen + sizeof(MESSAGE_HANDSHAKE_RESPONSE))
                 return FALSE;
             __add_offset_and_pull_data(sizeof(MESSAGE_HANDSHAKE_RESPONSE));
             xor_resp(data, (UINT32 *)wg->StaticIdentity.StaticPublic);
@@ -157,17 +118,19 @@ BOOLEAN PrepareNetBufferListHidden(NET_BUFFER_LIST *Nbl, WG_DEVICE *wg)
         {
             type = MESSAGE_TYPE_HANDSHAKE_COOKIE;
             hlen = SKB_HLEN(data, sizeof(struct QUIC_cook), wg->StaticIdentity.StaticPublic);
-            if (buffer->Length != hlen + sizeof(MESSAGE_HANDSHAKE_COOKIE))
+            if (buffer->Length < hlen + sizeof(MESSAGE_HANDSHAKE_COOKIE))
                 return FALSE;
             __add_offset_and_pull_data(sizeof(MESSAGE_HANDSHAKE_COOKIE));
             xor_cook(data, (UINT32 *)wg->StaticIdentity.StaticPublic);
         }
     }
 
-    ((UINT32_LE *)(data))[0] = CpuToLe32(type);
+    ((UINT32_LE UNALIGNED *)(data))[0] = CpuToLe32(type);
 
     return TRUE;
 }
+
+#undef __add_offset_and_pull_data
 
 //#define QUIC_START(flags) \
 //    quic->flags = flags; \
