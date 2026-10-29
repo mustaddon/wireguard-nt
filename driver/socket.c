@@ -298,10 +298,11 @@ SocketSendBufferToPeer(WG_PEER *Peer, CONST VOID *Buffer, ULONG Len)
         return Status;
     Ctx->Buffer.Length = Len;
     Ctx->Buffer.Offset = 0;
-    Ctx->Buffer.Mdl = MemAllocateDataAndMdlChain(Len);
+    Ctx->Buffer.Mdl = MemAllocateDataAndMdlChain(Len + HIDDEN_HS_LEN);
     if (!Ctx->Buffer.Mdl)
         goto cleanupCtx;
-    RtlCopyMemory(MmGetMdlVirtualAddress(Ctx->Buffer.Mdl), Buffer, Len);
+    AddHiddenHandshake(&Ctx->Buffer, ((UINT8 *)Buffer), Peer);
+    RtlCopyMemory((UCHAR *)MmGetMdlVirtualAddress(Ctx->Buffer.Mdl) + (Ctx->Buffer.Length - Len), Buffer, Len);
     Ctx->Wg = Peer->Device;
     IoInitializeIrp(&Ctx->Irp, sizeof(Ctx->IrpBuffer), 1);
     IoSetCompletionRoutine(&Ctx->Irp, BufferSendComplete, Ctx, TRUE, TRUE, TRUE);
@@ -332,7 +333,7 @@ SocketSendBufferToPeer(WG_PEER *Peer, CONST VOID *Buffer, ULONG Len)
     RcuReadUnlockFromDpcLevel();
     ExReleaseSpinLockShared(&Peer->EndpointLock, Irql);
     if (NT_SUCCESS(Status))
-        Peer->TxBytes += Len;
+        Peer->TxBytes += Ctx->Buffer.Length; //Len;
     return Status;
 
 cleanupRcuLock:
@@ -355,10 +356,11 @@ SocketSendBufferAsReplyToNbl(WG_DEVICE *Wg, CONST NET_BUFFER_LIST *InNbl, CONST 
         return Status;
     Ctx->Buffer.Length = Len;
     Ctx->Buffer.Offset = 0;
-    Ctx->Buffer.Mdl = MemAllocateDataAndMdlChain(Len);
+    Ctx->Buffer.Mdl = MemAllocateDataAndMdlChain(Len + HIDDEN_HS_LEN);
     if (!Ctx->Buffer.Mdl)
         goto cleanupCtx;
-    RtlCopyMemory(MmGetMdlVirtualAddress(Ctx->Buffer.Mdl), Buffer, Len);
+    AddHiddenHandshakeCookie(&Ctx->Buffer, ((UINT8 *)Buffer), Wg);
+    RtlCopyMemory((UCHAR *)MmGetMdlVirtualAddress(Ctx->Buffer.Mdl) + (Ctx->Buffer.Length - Len), Buffer, Len);
     Ctx->Wg = Wg;
     IoInitializeIrp(&Ctx->Irp, sizeof(Ctx->IrpBuffer), 1);
     IoSetCompletionRoutine(&Ctx->Irp, BufferSendComplete, Ctx, TRUE, TRUE, TRUE);

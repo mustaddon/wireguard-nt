@@ -19,9 +19,9 @@ _Return_type_success_(return == TRUE)
 _Must_inspect_result_
 BOOLEAN PrepareNetBufferListHidden(_Inout_ NET_BUFFER_LIST *Nbl, _In_ WG_DEVICE *wg);
 
-VOID skb_push_hidden_handshake_cookie(VOID *skb, VOID *buffer, WG_DEVICE *wg);
+VOID AddHiddenHandshake(WSK_BUF *wsk, UINT8 *buffer, WG_PEER *peer);
 
-VOID skb_push_hidden_handshake(VOID *skb, VOID *buffer, WG_PEER *peer);
+VOID AddHiddenHandshakeCookie(WSK_BUF *wsk, UINT8 *buffer, WG_DEVICE *wg);
 
 VOID skb_push_hidden_data(VOID *skb, VOID *buffer, UINT32 hlen, WG_PEER *peer);
 
