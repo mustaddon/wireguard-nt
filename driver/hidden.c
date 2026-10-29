@@ -250,42 +250,43 @@ VOID AddHiddenHandshakeCookie(WSK_BUF *wsk, UINT8 *buffer, WG_DEVICE *wg)
     if (!IndexHashtableLookup(
             wg->IndexHashtable, 
             INDEX_HASHTABLE_HANDSHAKE | INDEX_HASHTABLE_KEYPAIR, 
-            ((MESSAGE_HANDSHAKE_COOKIE *)buffer)->ReceiverIndex, &peer))
+            ((MESSAGE_HANDSHAKE_COOKIE *)buffer)->ReceiverIndex, 
+            &peer))
         return;
    
     AddHiddenHandshake(wsk, buffer, peer);
 }
 
-//UINT32 hidden_data_header_len(UINT32 len)
-//{
-//    if (unlikely(len == 32)) 
-//    {
-//        UINT8 hlen = ((UINT8)ktime_get_coarse_boottime_ns())&HIDDEN_NOIZE;
-//        if (hlen > 0) return sizeof(struct QUIC_data) + hlen;
-//    }
-//    return 0;
-//}
-//
-//VOID skb_push_hidden_data(VOID *skb, VOID *buffer, UINT32 hlen, WG_PEER *peer)
-//{
-//    UINT8 *quic = (UINT8 *)buffer;
-//
-//    if (likely(hlen == 0)) 
-//    {
-//        quic[0] = (((UINT8)ktime_get_coarse_boottime_ns())&0x1E) | 0x40;
-//        memcpy(&quic[1], &((MESSAGE_DATA *)buffer)->key_idx, 3);
-//    }
-//    else
-//    {
-//        quic = (UINT8 *)skb_push(skb, hlen);
-//        ((UINT32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
-//        quic[0] = (((UINT32 *)buffer)[0]&0x1E) | 0x41;
-//        hlen -= sizeof(struct QUIC_data);
-//        if (hlen > 1) CryptoRandom(quic+sizeof(struct QUIC_data)+1, hlen-1);
-//        quic[sizeof(struct QUIC_data)] = MASK_HLEN(hlen, peer->Handshake.RemoteStatic);
-//        memcpy(((struct QUIC_data *)quic)->DCID, &((MESSAGE_DATA *)buffer)->key_idx, 3);
-//    }
-//
-//    xor_data(buffer, (UINT32 *)peer->Handshake.RemoteStatic);
-//    XOR_HEAD(quic, peer->Handshake.RemoteStatic);
-//}
+ULONG HiddenDataHeaderLen(BOOLEAN isKeepalive)
+{
+   if (isKeepalive) 
+   {
+       UINT8 hlen = ((UINT8)KeQueryInterruptTime())&HIDDEN_NOIZE;
+       if (hlen > 0) return sizeof(struct QUIC_data) + hlen;
+   }
+   return 0;
+}
+
+VOID AddHiddenData(UINT8 *buffer, ULONG hlen, WG_PEER *peer)
+{
+   UINT8 *quic = (UINT8 *)buffer;
+
+   if (hlen == 0) 
+   {
+       quic[0] = (((UINT8)KeQueryInterruptTime())&0x1E) | 0x40;
+       memcpy(&quic[1], &((MESSAGE_DATA *)buffer)->KeyIdx, 3);
+   }
+   else
+   {
+       quic = buffer - hlen;
+       ((UINT32 *)buffer)[0] = KeQueryInterruptTime();
+       quic[0] = (((UINT32 *)buffer)[0]&0x1E) | 0x41;
+       hlen -= sizeof(struct QUIC_data);
+       if (hlen > 1) CryptoRandom(quic+sizeof(struct QUIC_data)+1, hlen-1);
+       quic[sizeof(struct QUIC_data)] = MASK_HLEN(hlen, peer->Handshake.RemoteStatic);
+       memcpy(((struct QUIC_data *)quic)->DCID, &((MESSAGE_DATA *)buffer)->KeyIdx, 3);
+   }
+
+   xor_data(buffer, (UINT32 *)peer->Handshake.RemoteStatic);
+   XOR_HEAD(quic, peer->Handshake.RemoteStatic);
+}

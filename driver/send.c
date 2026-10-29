@@ -7,6 +7,7 @@
 #include "queueing.h"
 #include "timers.h"
 #include "device.h"
+#include "hidden.h"
 #include "peer.h"
 #include "rcu.h"
 #include "socket.h"
@@ -187,10 +188,13 @@ EncryptPacket(
     _In_ UINT32 Mtu)
 {
     ULONG PaddingLen = CalculateNblPadding(NbIn, Mtu);
-    UCHAR *OutBuffer = MemGetValidatedNetBufferData(NbOut);
+    ULONG HiddenLen = HiddenDataHeaderLen(NET_BUFFER_DATA_LENGTH(NbIn) == 0);
+    UINT8 *OutBuffer = MemGetValidatedNetBufferData(NbOut);
+    OutBuffer += HiddenLen;
     *(MESSAGE_DATA *)OutBuffer = (MESSAGE_DATA){ .Header.Type = CpuToLe32(MESSAGE_TYPE_DATA),
                                                  .KeyIdx = Keypair->RemoteIndex,
                                                  .Counter = CpuToLe64(NET_BUFFER_NONCE(NbOut)) };
+    AddHiddenData(OutBuffer, HiddenLen, Keypair->Entry.Peer);
     OutBuffer += sizeof(MESSAGE_DATA);
 
     MDL *LastMdl = NULL, *OriginalNextMdl = NULL, PaddingMdl = { 0 };
@@ -229,7 +233,7 @@ EncryptPacket(
         NET_BUFFER_NONCE(NbOut),
         Keypair->Sending.Key,
         Simd);
-    NET_BUFFER_DATA_LENGTH(NbOut) = MessageDataLen(NET_BUFFER_DATA_LENGTH(NbIn));
+    NET_BUFFER_DATA_LENGTH(NbOut) = MessageDataLen(NET_BUFFER_DATA_LENGTH(NbIn)) + HiddenLen;
     NET_BUFFER_DATA_OFFSET(NbOut) = NET_BUFFER_CURRENT_MDL_OFFSET(NbOut) = 0;
     if (PaddingLen)
     {
@@ -250,7 +254,7 @@ PacketSendKeepalive(WG_PEER *Peer)
 
     if (NetBufferListIsQueueEmpty(&Peer->StagedPacketQueue))
     {
-        Nbl = MemAllocateNetBufferList(0, 0, sizeof(MESSAGE_DATA) + NoiseEncryptedLen(0));
+        Nbl = MemAllocateNetBufferList(0, 0, sizeof(MESSAGE_DATA) + NoiseEncryptedLen(0) + HIDDEN_HS_LEN);
         if (!Nbl)
             return;
         Nbl->ParentNetBufferList = Nbl;

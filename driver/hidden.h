@@ -23,9 +23,9 @@ VOID AddHiddenHandshake(WSK_BUF *wsk, UINT8 *buffer, WG_PEER *peer);
 
 VOID AddHiddenHandshakeCookie(WSK_BUF *wsk, UINT8 *buffer, WG_DEVICE *wg);
 
-VOID skb_push_hidden_data(VOID *skb, VOID *buffer, UINT32 hlen, WG_PEER *peer);
+VOID AddHiddenData(UINT8 *buffer, ULONG hlen, WG_PEER *peer);
 
-UINT32 hidden_data_header_len(UINT32 len);
+ULONG HiddenDataHeaderLen(BOOLEAN isKeepalive);
 
 
 #define QUIC_START_FIELDS UINT8 flags; UINT32_BE version;
