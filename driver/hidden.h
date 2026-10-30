@@ -5,6 +5,7 @@
 #include "peer.h"
 #include "memory.h"
 
+
 #if defined(_MSC_VER)
 #    define PACKED_STRUCT __pragma(pack(push, 1))
 #    define END_PACKED_STRUCT __pragma(pack(pop))
@@ -25,6 +26,7 @@ VOID AddHiddenHandshakeCookie(WSK_BUF *wsk, UINT8 *buffer, WG_DEVICE *wg);
 
 ULONG AddHiddenData(UINT8 *quic, MESSAGE_DATA *buffer, WG_PEER *peer, BOOLEAN isKeepalive);
 
+BOOLEAN IsKeepaliveNbOut(NET_BUFFER *nb);
 
 #define QUIC_START_FIELDS UINT8 flags; UINT32_BE version;
 #define QUIC_END_FIELDS UINT8 token_len; UINT16_BE data_len;

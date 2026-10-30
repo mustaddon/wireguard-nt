@@ -228,7 +228,8 @@ SocketSendNblsToPeer(WG_PEER *Peer, NET_BUFFER_LIST *First, BOOLEAN *AllKeepaliv
             LastWskBuf = NET_BUFFER_WSK_BUF(Nb);
             DataLength += NET_BUFFER_DATA_LENGTH(Nb);
             ++Packets;
-            if (NET_BUFFER_DATA_LENGTH(Nb) != MessageDataLen(0))
+            //if (NET_BUFFER_DATA_LENGTH(Nb) != MessageDataLen(0))
+            if (!IsKeepaliveNbOut(Nb))
                 *AllKeepalive = FALSE;
         }
     }

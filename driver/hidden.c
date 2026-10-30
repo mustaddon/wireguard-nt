@@ -263,25 +263,34 @@ ULONG AddHiddenData(UINT8 *quic, MESSAGE_DATA *buffer, WG_PEER *peer, BOOLEAN is
 {
     ULONG hlen = 0;
 
-   if (!isKeepalive) 
-   {
-       quic = (UINT8 *)buffer;
-       quic[0] = (((UINT8)KeQueryInterruptTime())&0x1E) | 0x40;
-       memcpy(&quic[1], &buffer->KeyIdx, 3);
-   }
-   else
-   {
-       ((UINT32 *)buffer)[0] = (UINT32)KeQueryInterruptTime();
-       quic[0] = (((UINT32 *)buffer)[0]&0x1E) | 0x41;
-       hlen = ((UINT8)KeQueryInterruptTime())&HIDDEN_NOIZE;
-       if (hlen > 1) CryptoRandom(quic+sizeof(struct QUIC_data)+1, hlen-1);
-       quic[sizeof(struct QUIC_data)] = (UINT8)MASK_HLEN(hlen, peer->Handshake.RemoteStatic);
-       memcpy(((struct QUIC_data *)quic)->DCID, &buffer->KeyIdx, 3);
-       hlen += sizeof(struct QUIC_data);
-   }
+    if (!isKeepalive) 
+    {
+        quic = (UINT8 *)buffer;
+        quic[0] = (((UINT8)KeQueryInterruptTime())&0x1E) | 0x40;
+        memcpy(&quic[1], &buffer->KeyIdx, 3);
+    }
+    else
+    {
+        ((UINT32 *)buffer)[0] = (UINT32)KeQueryInterruptTime();
+        quic[0] = (((UINT32 *)buffer)[0]&0x1E) | 0x41;
+        hlen = ((UINT8)KeQueryInterruptTime())&HIDDEN_NOIZE;
+        if (hlen > 1) CryptoRandom(quic+sizeof(struct QUIC_data)+1, hlen-1);
+        else hlen = 1;
+        quic[sizeof(struct QUIC_data)] = (UINT8)MASK_HLEN(hlen, peer->Handshake.RemoteStatic);
+        memcpy(((struct QUIC_data *)quic)->DCID, &buffer->KeyIdx, 3);
+        hlen += sizeof(struct QUIC_data);
+    }
 
-   xor_data((UINT8 *)buffer, (UINT32 *)peer->Handshake.RemoteStatic);
-   XOR_HEAD(quic, peer->Handshake.RemoteStatic);
+    xor_data((UINT8 *)buffer, (UINT32 *)peer->Handshake.RemoteStatic);
+    XOR_HEAD(quic, peer->Handshake.RemoteStatic);
 
-   return hlen;
+    return hlen;
 }
+
+BOOLEAN IsKeepaliveNbOut(NET_BUFFER *nb)
+{
+    //return NET_BUFFER_DATA_LENGTH(Nb) == MessageDataLen(0);
+    UINT8 *buffer = MemGetValidatedNetBufferData(nb);
+    return ((buffer[0] & 0x41) != 0) && ((buffer[0] & 0x80) == 0);
+}
+
