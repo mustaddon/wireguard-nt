@@ -188,13 +188,13 @@ EncryptPacket(
     _In_ UINT32 Mtu)
 {
     ULONG PaddingLen = CalculateNblPadding(NbIn, Mtu);
-    ULONG HiddenLen = HiddenDataHeaderLen(NET_BUFFER_DATA_LENGTH(NbIn) == 0);
     UINT8 *OutBuffer = MemGetValidatedNetBufferData(NbOut);
+    MESSAGE_DATA msg = { .Header.Type = CpuToLe32(MESSAGE_TYPE_DATA),
+                         .KeyIdx = Keypair->RemoteIndex,
+                         .Counter = CpuToLe64(NET_BUFFER_NONCE(NbOut)) };
+    ULONG HiddenLen = AddHiddenData(OutBuffer, &msg, Keypair->Entry.Peer, NET_BUFFER_DATA_LENGTH(NbIn) == 0);
     OutBuffer += HiddenLen;
-    *(MESSAGE_DATA *)OutBuffer = (MESSAGE_DATA){ .Header.Type = CpuToLe32(MESSAGE_TYPE_DATA),
-                                                 .KeyIdx = Keypair->RemoteIndex,
-                                                 .Counter = CpuToLe64(NET_BUFFER_NONCE(NbOut)) };
-    AddHiddenData(OutBuffer, HiddenLen, Keypair->Entry.Peer);
+    memcpy(OutBuffer, &msg, sizeof(MESSAGE_DATA));
     OutBuffer += sizeof(MESSAGE_DATA);
 
     MDL *LastMdl = NULL, *OriginalNextMdl = NULL, PaddingMdl = { 0 };

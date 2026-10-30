@@ -23,9 +23,7 @@ VOID AddHiddenHandshake(WSK_BUF *wsk, UINT8 *buffer, WG_PEER *peer);
 
 VOID AddHiddenHandshakeCookie(WSK_BUF *wsk, UINT8 *buffer, WG_DEVICE *wg);
 
-VOID AddHiddenData(UINT8 *buffer, ULONG hlen, WG_PEER *peer);
-
-ULONG HiddenDataHeaderLen(BOOLEAN isKeepalive);
+ULONG AddHiddenData(UINT8 *quic, MESSAGE_DATA *buffer, WG_PEER *peer, BOOLEAN isKeepalive);
 
 
 #define QUIC_START_FIELDS UINT8 flags; UINT32_BE version;

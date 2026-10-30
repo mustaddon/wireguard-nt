@@ -1,6 +1,7 @@
 #include "hidden.h"
 #include "messages.h"
 #include "peerlookup.h"
+#include "queueing.h"
 
 
 #define XOR_HEAD(skb, mask) ((UINT8 *)(skb))[0]=(((UINT8 *)(skb))[0]&0xF0)|((((UINT8 *)(skb))[0]^((UINT8 *)(mask))[3])&0x0F)
@@ -67,17 +68,17 @@ BOOLEAN PrepareNetBufferListHidden(NET_BUFFER_LIST *Nbl, WG_DEVICE *wg)
     int type;
     ULONG hlen;
 
-// #define __add_offset_and_pull_data(len) \
-//     buffer->Offset += hlen; \
-//     buffer->Length -= hlen; \
-//     if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
-
 #define __add_offset_and_pull_data(len) \
-    NdisAdvanceNetBufferDataStart(NET_BUFFER_LIST_FIRST_NB(Nbl), hlen, FALSE, NULL); \
-    buffer->Offset += hlen; \
-    buffer->Length -= hlen; \
-    data = MemGetValidatedNetBufferListData(Nbl); \
-    if (!data || !NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
+     buffer->Offset += hlen; \
+     buffer->Length -= hlen; \
+     if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
+
+//#define __add_offset_and_pull_data(len) \
+//    NdisAdvanceNetBufferDataStart(NET_BUFFER_LIST_FIRST_NB(Nbl), hlen, FALSE, NULL); \
+//    buffer->Offset += hlen; \
+//    buffer->Length -= hlen; \
+//    data = MemGetValidatedNetBufferListData(Nbl); \
+//    if (!data || !NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
 
 
     if ((data[0] & 0x80) == 0)
@@ -143,7 +144,8 @@ BOOLEAN PrepareNetBufferListHidden(NET_BUFFER_LIST *Nbl, WG_DEVICE *wg)
 #define QUIC_HLEN(quic, hlen, mask) \
    if (hlen > 0) { \
        if (hlen > 1) CryptoRandom((UINT8 *)quic+sizeof(*quic)+1, hlen-1); \
-       ((UINT8 *)quic)[sizeof(*quic)]=MASK_HLEN(hlen, mask); }
+       ((UINT8 *)quic)[sizeof(*quic)]=(UINT8)MASK_HLEN(hlen, mask); \
+    }
 
 static VOID add_quick_init(
    MESSAGE_HANDSHAKE_INITIATION *data, 
@@ -257,36 +259,29 @@ VOID AddHiddenHandshakeCookie(WSK_BUF *wsk, UINT8 *buffer, WG_DEVICE *wg)
     AddHiddenHandshake(wsk, buffer, peer);
 }
 
-ULONG HiddenDataHeaderLen(BOOLEAN isKeepalive)
+ULONG AddHiddenData(UINT8 *quic, MESSAGE_DATA *buffer, WG_PEER *peer, BOOLEAN isKeepalive)
 {
-   if (isKeepalive) 
-   {
-       UINT8 hlen = ((UINT8)KeQueryInterruptTime())&HIDDEN_NOIZE;
-       if (hlen > 0) return sizeof(struct QUIC_data) + hlen;
-   }
-   return 0;
-}
+    ULONG hlen = 0;
 
-VOID AddHiddenData(UINT8 *buffer, ULONG hlen, WG_PEER *peer)
-{
-   UINT8 *quic = (UINT8 *)buffer;
-
-   if (hlen == 0) 
+   if (!isKeepalive) 
    {
+       quic = (UINT8 *)buffer;
        quic[0] = (((UINT8)KeQueryInterruptTime())&0x1E) | 0x40;
-       memcpy(&quic[1], &((MESSAGE_DATA *)buffer)->KeyIdx, 3);
+       memcpy(&quic[1], &buffer->KeyIdx, 3);
    }
    else
    {
-       quic = buffer - hlen;
-       ((UINT32 *)buffer)[0] = KeQueryInterruptTime();
+       ((UINT32 *)buffer)[0] = (UINT32)KeQueryInterruptTime();
        quic[0] = (((UINT32 *)buffer)[0]&0x1E) | 0x41;
-       hlen -= sizeof(struct QUIC_data);
+       hlen = ((UINT8)KeQueryInterruptTime())&HIDDEN_NOIZE;
        if (hlen > 1) CryptoRandom(quic+sizeof(struct QUIC_data)+1, hlen-1);
-       quic[sizeof(struct QUIC_data)] = MASK_HLEN(hlen, peer->Handshake.RemoteStatic);
-       memcpy(((struct QUIC_data *)quic)->DCID, &((MESSAGE_DATA *)buffer)->KeyIdx, 3);
+       quic[sizeof(struct QUIC_data)] = (UINT8)MASK_HLEN(hlen, peer->Handshake.RemoteStatic);
+       memcpy(((struct QUIC_data *)quic)->DCID, &buffer->KeyIdx, 3);
+       hlen += sizeof(struct QUIC_data);
    }
 
-   xor_data(buffer, (UINT32 *)peer->Handshake.RemoteStatic);
+   xor_data((UINT8 *)buffer, (UINT32 *)peer->Handshake.RemoteStatic);
    XOR_HEAD(quic, peer->Handshake.RemoteStatic);
+
+   return hlen;
 }
