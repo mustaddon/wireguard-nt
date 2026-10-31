@@ -289,8 +289,8 @@ ULONG AddHiddenData(UINT8 *quic, MESSAGE_DATA *buffer, WG_PEER *peer, BOOLEAN is
 
 BOOLEAN IsKeepaliveNbOut(NET_BUFFER *nb)
 {
-    //return NET_BUFFER_DATA_LENGTH(Nb) == MessageDataLen(0);
+    if (NET_BUFFER_DATA_LENGTH(nb) == MessageDataLen(0)) return TRUE;
     UINT8 *buffer = MemGetValidatedNetBufferData(nb);
-    return ((buffer[0] & 0x41) != 0) && ((buffer[0] & 0x80) == 0);
+    return ((buffer[0] & 0x41) == 0x41) && ((buffer[0] & 0x80) == 0);
 }
 
