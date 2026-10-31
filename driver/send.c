@@ -194,7 +194,7 @@ EncryptPacket(
                          .Counter = CpuToLe64(NET_BUFFER_NONCE(NbOut)) };
     ULONG HiddenLen = AddHiddenData(OutBuffer, &msg, Keypair->Entry.Peer, NET_BUFFER_DATA_LENGTH(NbIn) == 0);
     OutBuffer += HiddenLen;
-    memcpy(OutBuffer, &msg, sizeof(MESSAGE_DATA));
+    RtlCopyMemory(OutBuffer, &msg, sizeof(MESSAGE_DATA));
     OutBuffer += sizeof(MESSAGE_DATA);
 
     MDL *LastMdl = NULL, *OriginalNextMdl = NULL, PaddingMdl = { 0 };

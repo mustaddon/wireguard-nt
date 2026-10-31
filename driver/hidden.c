@@ -69,9 +69,9 @@ BOOLEAN PrepareNetBufferListHidden(NET_BUFFER_LIST *Nbl, WG_DEVICE *wg)
     ULONG hlen;
 
 #define __add_offset_and_pull_data(len) \
-     buffer->Offset += hlen; \
-     buffer->Length -= hlen; \
-     if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
+    buffer->Offset += hlen; \
+    buffer->Length -= hlen; \
+    if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
 
 //#define __add_offset_and_pull_data(len) \
 //    NdisAdvanceNetBufferDataStart(NET_BUFFER_LIST_FIRST_NB(Nbl), hlen, FALSE, NULL); \
