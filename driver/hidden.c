@@ -71,6 +71,7 @@ BOOLEAN PrepareNetBufferListHidden(NET_BUFFER_LIST *Nbl, WG_DEVICE *wg)
 #define __add_offset_and_pull_data(len) \
     buffer->Offset += hlen; \
     buffer->Length -= hlen; \
+    NET_BUFFER_DATA_LENGTH(NET_BUFFER_LIST_FIRST_NB(Nbl)) -= hlen; \
     if (!NT_SUCCESS(MemCopyFromMdl(data, buffer->Mdl, buffer->Offset, len))) return FALSE;
 
 //#define __add_offset_and_pull_data(len) \
